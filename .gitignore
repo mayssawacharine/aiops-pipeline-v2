@@ -1,4 +1,6 @@
 .env
+data/*.png
+data/*.joblib
 data/*.db
 data/*.csv
 .pytest_cache/
