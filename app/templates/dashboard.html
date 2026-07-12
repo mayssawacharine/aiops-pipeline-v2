@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>CI/CD Anomaly Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #0b0d12;
+      color: #e6e6e6;
+      padding: 40px;
+      margin: 0;
+    }
+    h1 {
+      color: #4dd4a0;
+      font-size: 28px;
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .card {
+      background: linear-gradient(145deg, #1c1f26, #15171c);
+      padding: 18px 22px;
+      border-radius: 12px;
+      border: 1px solid #262a33;
+    }
+    .card h3 {
+      margin: 0;
+      font-size: 13px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .card p {
+      margin: 8px 0 0;
+      font-size: 26px;
+      font-weight: bold;
+    }
+    .card.anomaly-card p { color: #ff7c98; }
+    .card.failed-card p { color: #ffb454; }
+    .card.normal-card p { color: #4dd4a0; }
+
+    .chart-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 30px;
+    }
+    .chart-box img { width: 100%; display: block; border-radius: 8px; }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .toolbar button {
+      background: #1c1f26;
+      color: #e6e6e6;
+      border: 1px solid #333;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .toolbar button.active {
+      background: #4dd4a0;
+      color: #0b0d12;
+      font-weight: bold;
+      border-color: #4dd4a0;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 14px; border-bottom: 1px solid #22252c; text-align: left; font-size: 14px; }
+    th { color: #4dd4a0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    tr:hover { background: #14161c; }
+    .badge {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      display: inline-block;
+    }
+    .badge.anomaly { background: rgba(255,124,152,0.15); color: #ff7c98; }
+    .badge.normal { background: rgba(77,212,160,0.15); color: #4dd4a0; }
+    .empty { color: #999; font-style: italic; padding: 20px; }
+    tr.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+  <h1>🛰️ CI/CD Anomaly Dashboard</h1>
+  <a href="/refresh" style="background:#4dd4a0; color:#0b0d12; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:14px;">
+    🔄 Actualiser les données
+  </a>
+</div>
+
+  {% if stats %}
+  <div class="cards">
+    <div class="card"><h3>Total Runs</h3><p>{{ stats.get('total_runs', 0) }}</p></div>
+    <div class="card failed-card"><h3>Failed Runs</h3><p>{{ stats.get('failed_runs', 0) }}</p></div>
+    <div class="card anomaly-card"><h3>Anomalies</h3><p>{{ stats.get('anomalies', 0) }}</p></div>
+    <div class="card normal-card"><h3>Avg Duration</h3><p>{{ stats.get('avg_duration', 0) }}s</p></div>
+  </div>
+  {% endif %}
+
+  {% if chart_path %}
+  <div class="chart-box">
+    <img src="{{ chart_path }}" alt="Anomaly chart">
+  </div>
+  {% endif %}
+
+  {% if rows %}
+  <div class="toolbar">
+    <button class="active" onclick="filterRows('all', this)">Tous ({{ rows|length }})</button>
+    <button onclick="filterRows('anomaly', this)">Anomalies seulement</button>
+    <button onclick="filterRows('normal', this)">Normaux seulement</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Date</th><th>Run ID</th><th>Conclusion</th><th>Durée</th><th>Statut</th><th>Score</th></tr>
+    </thead>
+    <tbody id="runs-body">
+      {% for row in rows %}
+      <tr class="row-item" data-status="{{ 'anomaly' if row.anomaly_label == -1 else 'normal' }}">
+  <td>{{ row.created_at_display }}</td>
+  <td>{{ row.run_id }}</td>
+  <td>{{ row.conclusion }}</td>
+  <td>{{ row.duration_seconds }}s</td>
+  <td>
+    <span class="badge {{ 'anomaly' if row.anomaly_label == -1 else 'normal' }}">
+      {{ 'Anomaly' if row.anomaly_label == -1 else 'Normal' }}
+    </span>
+  </td>
+  <td>{{ "%.4f"|format(row.anomaly_score) }}</td>
+</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Aucune donnée disponible pour le moment. Lance le pipeline pour générer des métriques.</p>
+  {% endif %}
+
+  <script>
+    function filterRows(status, btn) {
+      document.querySelectorAll('.toolbar button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.row-item').forEach(row => {
+        if (status === 'all' || row.dataset.status === status) {
+          row.classList.remove('hidden');
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+    }
+  </script>
+</body>
+</html>
