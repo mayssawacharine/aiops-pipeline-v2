@@ -6,6 +6,7 @@ import random
 from flask import render_template
 import pandas as pd
 import os
+import sys
 import subprocess
 from flask import redirect, url_for
 app = Flask(__name__)
@@ -41,7 +42,7 @@ def simulate():
 @app.get("/refresh")
 def refresh():
     try:
-        subprocess.run(["python", "scripts/fetch_metrics.py"], check=True, timeout=60)
+        subprocess.run([sys.executable, "scripts/fetch_metrics.py"], check=True, timeout=60)
         subprocess.run(["python", "scripts/train_model.py"], check=True, timeout=60)
         if os.path.exists("data/anomalies.png"):
             subprocess.run(["cp", "data/anomalies.png", "app/static/anomalies.png"], check=True)
