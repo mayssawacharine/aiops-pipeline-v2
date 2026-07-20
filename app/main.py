@@ -30,8 +30,20 @@ def build_log():
 @app.get("/simulate")
 def simulate():
     status = request.args.get("status", "success")
-    duration = int(request.args.get("duration", 45))
-    failed_tests = int(request.args.get("failed_tests", 0))
+
+    try:
+        duration = int(request.args.get("duration", 45))
+    except (ValueError, TypeError):
+        return jsonify({"error": "duration must be a valid integer"}), 400
+
+    try:
+        failed_tests = int(request.args.get("failed_tests", 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "failed_tests must be a valid integer"}), 400
+
+    if duration < 0 or duration > 3600:
+        return jsonify({"error": "duration must be between 0 and 3600 seconds"}), 400
+
     return jsonify({
         "build_id": random.randint(10000, 99999),
         "status": status,
