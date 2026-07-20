@@ -43,7 +43,7 @@ def simulate():
 def refresh():
     try:
         subprocess.run([sys.executable, "scripts/fetch_metrics.py"], check=True, timeout=60)
-        subprocess.run(["python", "scripts/train_model.py"], check=True, timeout=60)
+        subprocess.run([sys.executable, "scripts/train_model.py"], check=True, timeout=60)
         if os.path.exists("data/anomalies.png"):
             subprocess.run(["cp", "data/anomalies.png", "app/static/anomalies.png"], check=True)
     except subprocess.CalledProcessError as e:
