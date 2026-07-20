@@ -8,6 +8,7 @@ import pandas as pd
 import os
 import sys
 import subprocess
+import shutil
 from flask import redirect, url_for
 app = Flask(__name__)
 
@@ -45,7 +46,7 @@ def refresh():
         subprocess.run([sys.executable, "scripts/fetch_metrics.py"], check=True, timeout=60)
         subprocess.run([sys.executable, "scripts/train_model.py"], check=True, timeout=60)
         if os.path.exists("data/anomalies.png"):
-            subprocess.run(["cp", "data/anomalies.png", "app/static/anomalies.png"], check=True)
+            shutil.copy("data/anomalies.png", "app/static/anomalies.png")
     except subprocess.CalledProcessError as e:
         return f"Erreur lors du rafraîchissement : {e}", 500
     return redirect(url_for("dashboard"))
