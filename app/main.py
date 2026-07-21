@@ -1,8 +1,11 @@
 from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask, jsonify, request
+import csv
 from datetime import datetime
 import random
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask import render_template
 import pandas as pd
 import os
@@ -11,7 +14,30 @@ import subprocess
 import shutil
 from flask import redirect, url_for
 app = Flask(__name__)
-
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]
+)
+def log_request(endpoint, status_code, params=None):
+    os.makedirs("data", exist_ok=True)
+    log_file = "data/api_requests.csv"
+    exists = os.path.exists(log_file)
+    with open(log_file, "a", newline="") as f:
+        writer = csv.writer(f)
+        if not exists:
+            writer.writerow(["timestamp", "endpoint", "status_code", "params", "ip"])
+        writer.writerow([
+            datetime.utcnow().isoformat(),
+            endpoint,
+            status_code,
+            str(params) if params else "",
+            request.remote_addr
+        ])
+@app.after_request
+def after_request(response):
+    log_request(request.path, response.status_code, dict(request.args))
+    return response
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"}), 200
@@ -28,6 +54,7 @@ def build_log():
     })
 
 @app.get("/simulate")
+@limiter.limit("10 per minute")
 def simulate():
     status = request.args.get("status", "success")
 
@@ -53,16 +80,22 @@ def simulate():
         "timestamp": datetime.utcnow().isoformat()
     })
 @app.get("/refresh")
+@limiter.limit("5 per hour")
 def refresh():
+    provided_secret = request.args.get("secret", "")
+    expected_secret = os.getenv("REFRESH_SECRET", "")
+    if not expected_secret or provided_secret != expected_secret:
+        return jsonify({"error": "Unauthorized"}), 401
     try:
         subprocess.run([sys.executable, "scripts/fetch_metrics.py"], check=True, timeout=60)
         subprocess.run([sys.executable, "scripts/train_model.py"], check=True, timeout=60)
         if os.path.exists("data/anomalies.png"):
             shutil.copy("data/anomalies.png", "app/static/anomalies.png")
+        if os.path.exists("data/api_requests.csv"):
+            subprocess.run([sys.executable, "scripts/detect_api_anomalies.py"], check=True, timeout=60)
     except subprocess.CalledProcessError as e:
         return f"Erreur lors du rafraîchissement : {e}", 500
     return redirect(url_for("dashboard"))
-
 @app.get("/dashboard")
 def dashboard():
     csv_path = "data/scored_runs.csv"
@@ -82,5 +115,24 @@ def dashboard():
     df["created_at_display"] = df["created_at"].dt.strftime("%d/%m/%Y %H:%M")
     rows = df.head(20).to_dict(orient="records")
     return render_template("dashboard.html", rows=rows, stats=stats, chart_path="/static/anomalies.png")
+@app.get("/security")
+def security_dashboard():
+    csv_path = "data/api_security_scored.csv"
+    if not os.path.exists(csv_path):
+        return render_template("security.html", rows=[], stats={})
+
+    df = pd.read_csv(csv_path)
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df = df.sort_values("timestamp", ascending=False)
+
+    stats = {
+        "total_requests": int(len(df)),
+        "suspicious_requests": int((df["security_anomaly"] == -1).sum()),
+        "error_requests": int((df["is_error"] == 1).sum()),
+        "max_payload_length": int(df["params_length"].max())
+    }
+    df["timestamp_display"] = df["timestamp"].dt.strftime("%H:%M:%S.%f").str[:-3]
+    rows = df.head(30).to_dict(orient="records")
+    return render_template("security.html", rows=rows, stats=stats)
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
