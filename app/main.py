@@ -79,10 +79,10 @@ def simulate():
         "failed_tests": failed_tests,
         "timestamp": datetime.utcnow().isoformat()
     })
-@app.get("/refresh")
+@app.post("/refresh")
 @limiter.limit("5 per hour")
 def refresh():
-    provided_secret = request.args.get("secret", "")
+    provided_secret = request.headers.get("X-Refresh-Secret", "")
     expected_secret = os.getenv("REFRESH_SECRET", "")
     if not expected_secret or provided_secret != expected_secret:
         return jsonify({"error": "Unauthorized"}), 401

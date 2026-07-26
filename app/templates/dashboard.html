@@ -97,9 +97,25 @@
 <body>
   <div style="display:flex; justify-content:space-between; align-items:center;">
   <h1>🛰️ CI/CD Anomaly Dashboard</h1>
-  <a href="/refresh" style="background:#4dd4a0; color:#0b0d12; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:14px;">
+  <button onclick="refreshData()" style="background:#4dd4a0; color:#0b0d12; padding:10px 20px; border-radius:8px; border:none; font-weight:bold; font-size:14px; cursor:pointer;">
     🔄 Actualiser les données
-  </a>
+</button>
+
+<script>
+async function refreshData() {
+    const secret = prompt("Entrez le secret d'actualisation :");
+    if (!secret) return;
+    const response = await fetch('/refresh', {
+        method: 'POST',
+        headers: { 'X-Refresh-Secret': secret }
+    });
+    if (response.ok) {
+        location.reload();
+    } else {
+        alert("Secret incorrect ou erreur serveur.");
+    }
+}
+</script>
 <a href="/security" style="background:#ff7c98; color:#0b0d12; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:14px; margin-left:10px;">
     🛡️ Security Dashboard
   </a>
