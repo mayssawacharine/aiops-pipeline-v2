@@ -100,11 +100,14 @@
   <button onclick="refreshData()" style="background:#4dd4a0; color:#0b0d12; padding:10px 20px; border-radius:8px; border:none; font-weight:bold; font-size:14px; cursor:pointer;">
     🔄 Actualiser les données
 </button>
-
 <script>
 async function refreshData() {
-    const secret = prompt("Entrez le secret d'actualisation :");
-    if (!secret) return;
+    let secret = sessionStorage.getItem('refresh_secret');
+    if (!secret) {
+        secret = prompt("Entrez le secret d'actualisation :");
+        if (!secret) return;
+        sessionStorage.setItem('refresh_secret', secret);
+    }
     const response = await fetch('/refresh', {
         method: 'POST',
         headers: { 'X-Refresh-Secret': secret }
@@ -112,7 +115,8 @@ async function refreshData() {
     if (response.ok) {
         location.reload();
     } else {
-        alert("Secret incorrect ou erreur serveur.");
+        sessionStorage.removeItem('refresh_secret');
+        alert("Secret incorrect. Réessaie.");
     }
 }
 </script>
