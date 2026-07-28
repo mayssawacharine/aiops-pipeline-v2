@@ -81,22 +81,23 @@ def simulate():
     })
 @app.post("/refresh")
 @limiter.limit("5 per hour")
+@app.post("/refresh")
 def refresh():
     provided_secret = request.headers.get("X-Refresh-Secret", "")
     expected_secret = os.getenv("REFRESH_SECRET", "")
     if not expected_secret or provided_secret != expected_secret:
         return jsonify({"error": "Unauthorized"}), 401
     try:
-        subprocess.run([sys.executable, "scripts/fetch_metrics.py"], check=True, timeout=60)
-        subprocess.run([sys.executable, "scripts/train_model.py"], check=True, timeout=60)
+        result1 = subprocess.run([sys.executable, "scripts/fetch_metrics.py"], capture_output=True, text=True, timeout=60)
+        result2 = subprocess.run([sys.executable, "scripts/train_model.py"], capture_output=True, text=True, timeout=60)
         if os.path.exists("data/anomalies.png"):
             shutil.copy("data/anomalies.png", "app/static/anomalies.png")
-        if os.path.exists("data/api_requests.csv"):
-            subprocess.run([sys.executable, "scripts/detect_api_anomalies.py"], check=True, timeout=60)
-    except subprocess.CalledProcessError as e:
-        return f"Erreur lors du rafraîchissement : {e}", 500
-    return redirect(url_for("dashboard"))
-@app.get("/dashboard")
+        return jsonify({
+            "fetch_stdout": result1.stdout, "fetch_stderr": result1.stderr, "fetch_code": result1.returncode,
+            "train_stdout": result2.stdout, "train_stderr": result2.stderr, "train_code": result2.returncode
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500@app.get("/dashboard")
 def dashboard():
     csv_path = "data/scored_runs.csv"
     if not os.path.exists(csv_path):
