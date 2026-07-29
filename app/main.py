@@ -80,7 +80,7 @@ def simulate():
         "timestamp": datetime.utcnow().isoformat()
     })
 @app.post("/refresh")
-@limiter.limit("5 per hour")
+@limiter.limit("20 per hour")
 def refresh():
     provided_secret = request.headers.get("X-Refresh-Secret", "")
     expected_secret = os.getenv("REFRESH_SECRET", "")
