@@ -81,7 +81,6 @@ def simulate():
     })
 @app.post("/refresh")
 @limiter.limit("5 per hour")
-@app.post("/refresh")
 def refresh():
     provided_secret = request.headers.get("X-Refresh-Secret", "")
     expected_secret = os.getenv("REFRESH_SECRET", "")
@@ -97,7 +96,8 @@ def refresh():
             "train_stdout": result2.stdout, "train_stderr": result2.stderr, "train_code": result2.returncode
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500@app.get("/dashboard")
+        return jsonify({"error": str(e)}), 500
+@app.get("/dashboard")
 def dashboard():
     csv_path = "data/scored_runs.csv"
     if not os.path.exists(csv_path):
