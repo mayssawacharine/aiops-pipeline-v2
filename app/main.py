@@ -91,6 +91,8 @@ def refresh():
         subprocess.run([sys.executable, "scripts/train_model.py"], check=True, timeout=60)
         if os.path.exists("data/anomalies.png"):
             shutil.copy("data/anomalies.png", "app/static/anomalies.png")
+        if os.path.exists("data/api_requests.csv"):
+            subprocess.run([sys.executable, "scripts/detect_api_anomalies.py"], check=True, timeout=60)
     except subprocess.CalledProcessError as e:
         return jsonify({"error": "Erreur lors du rafraîchissement"}), 500
     return redirect(url_for("dashboard"))
