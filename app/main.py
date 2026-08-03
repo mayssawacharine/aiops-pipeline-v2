@@ -4,6 +4,7 @@ from flask import Flask, jsonify, request
 import csv
 from datetime import datetime
 import random
+from flask_talisman import Talisman
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask import render_template
@@ -14,10 +15,13 @@ import subprocess
 import shutil
 from flask import redirect, url_for
 app = Flask(__name__)
+
+if os.getenv("RENDER"):
+    Talisman(app, force_https=True, strict_transport_security=True, content_security_policy=None)
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["100 per hour", "20 per minute"]
 )
 def log_request(endpoint, status_code, params=None):
     os.makedirs("data", exist_ok=True)
