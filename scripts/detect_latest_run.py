@@ -25,22 +25,26 @@ result = {
     "anomaly_label": int(latest.iloc[0]["anomaly_label"]),
     "anomaly_score": float(latest.iloc[0]["anomaly_score"])
 }
-
 if result["anomaly_label"] == -1:
     history_file = "data/anomaly_history.csv"
     exists = os.path.exists(history_file)
-    with open(history_file, "a", newline="") as f:
-        writer = csv.writer(f)
-        if not exists:
-            writer.writerow(["detected_at", "run_id", "conclusion", "duration_seconds", "anomaly_score", "html_url"])
-        writer.writerow([
-            datetime.utcnow().isoformat(),
-            result["run_id"],
-            result["conclusion"],
-            result["duration_seconds"],
-            result["anomaly_score"],
-            df.tail(1).iloc[0].get("html_url", "")
-        ])
+    already_logged = False
+    if exists:
+        existing = pd.read_csv(history_file)
+        already_logged = result["run_id"] in existing["run_id"].values
+    if not already_logged:
+        with open(history_file, "a", newline="") as f:
+            writer = csv.writer(f)
+            if not exists:
+                writer.writerow(["detected_at", "run_id", "conclusion", "duration_seconds", "anomaly_score", "html_url"])
+            writer.writerow([
+                datetime.utcnow().isoformat(),
+                result["run_id"],
+                result["conclusion"],
+                result["duration_seconds"],
+                result["anomaly_score"],
+                df.tail(1).iloc[0].get("html_url", "")
+            ])
 with open("data/latest_detection.json", "w") as f:
     json.dump(result, f, indent=2)
 print(json.dumps(result))

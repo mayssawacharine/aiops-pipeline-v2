@@ -14,6 +14,8 @@ response.raise_for_status()
 runs = response.json()["workflow_runs"]
 rows = []
 for run in runs:
+    if run["name"] != "CI Pipeline":
+        continue
     created = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
     updated = datetime.fromisoformat(run["updated_at"].replace("Z", "+00:00"))
     duration_seconds = int((updated - created).total_seconds())
