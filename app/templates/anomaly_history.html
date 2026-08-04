@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Historique des anomalies</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #0b0d12; color: #e6e6e6; padding: 40px; }
+    h1 { color: #ff7c98; }
+    nav a { color: #4dd4a0; text-decoration: none; margin-right: 20px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 10px 14px; border-bottom: 1px solid #22252c; text-align: left; font-size: 14px; }
+    th { color: #4dd4a0; text-transform: uppercase; font-size: 12px; }
+    a.run-link { color: #4dd4a0; }
+    .empty { color: #999; font-style: italic; }
+  </style>
+</head>
+<body>
+  <nav><a href="/dashboard">← CI/CD Dashboard</a> <a href="/security">Security Dashboard</a></nav>
+  <h1>📜 Historique complet des anomalies</h1>
+  {% if rows %}
+  <table>
+    <thead>
+      <tr><th>Détectée le</th><th>Run ID</th><th>Conclusion</th><th>Durée</th><th>Score</th><th>Lien</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.detected_at }}</td>
+        <td>{{ row.run_id }}</td>
+        <td>{{ row.conclusion }}</td>
+        <td>{{ row.duration_seconds }}s</td>
+        <td>{{ "%.4f"|format(row.anomaly_score) }}</td>
+        <td><a class="run-link" href="{{ row.html_url }}" target="_blank">Voir sur GitHub</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Aucune anomalie enregistrée pour le moment.</p>
+  {% endif %}
+</body>
+</html>

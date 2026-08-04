@@ -138,5 +138,15 @@ def security_dashboard():
     df["timestamp_display"] = df["timestamp"].dt.strftime("%H:%M:%S.%f").str[:-3]
     rows = df.head(30).to_dict(orient="records")
     return render_template("security.html", rows=rows, stats=stats)
+@app.get("/anomaly-history")
+def anomaly_history():
+    csv_path = "data/anomaly_history.csv"
+    if not os.path.exists(csv_path):
+        return render_template("anomaly_history.html", rows=[])
+    df = pd.read_csv(csv_path)
+    df["detected_at"] = pd.to_datetime(df["detected_at"])
+    df = df.sort_values("detected_at", ascending=False)
+    rows = df.to_dict(orient="records")
+    return render_template("anomaly_history.html", rows=rows)
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
