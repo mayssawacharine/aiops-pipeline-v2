@@ -10,6 +10,14 @@ jobs:
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
+      - name: Get previous successful deploy ID (for rollback)
+        id: previous
+        run: |
+          PREV_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys?limit=5" \
+            | jq -r '[.[] | select(.deploy.status=="live")][0].deploy.id')
+          echo "prev_id=$PREV_ID" >> "$GITHUB_OUTPUT"
+
       - name: Trigger Render deploy
         run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
 
@@ -17,6 +25,8 @@ jobs:
         run: sleep 60
 
       - name: Health check
+        id: healthcheck
+        continue-on-error: true
         run: |
           response=$(curl -s -o /dev/null -w "%{http_code}" https://aiops-pipeline-v2-1.onrender.com/health)
           if [ "$response" != "200" ]; then
@@ -24,3 +34,15 @@ jobs:
             exit 1
           fi
           echo "Deployment healthy"
+
+      - name: Rollback if health check failed
+        if: steps.healthcheck.outcome == 'failure'
+        run: |
+          echo "Rolling back to previous deploy: ${{ steps.previous.outputs.prev_id }}"
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/${{ steps.previous.outputs.prev_id }}/rollback"
+
+      - name: Fail workflow if rollback happened
+        if: steps.healthcheck.outcome == 'failure'
+        run: exit 1
