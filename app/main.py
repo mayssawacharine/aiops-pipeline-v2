@@ -93,6 +93,7 @@ def refresh():
     try:
         subprocess.run([sys.executable, "scripts/fetch_metrics.py"], check=True, timeout=60)
         subprocess.run([sys.executable, "scripts/train_model.py"], check=True, timeout=60)
+        subprocess.run([sys.executable, "scripts/detect_latest_run.py"], check=True, timeout=60)
         if os.path.exists("data/anomalies.png"):
             shutil.copy("data/anomalies.png", "app/static/anomalies.png")
         if os.path.exists("data/api_requests.csv"):
