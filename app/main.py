@@ -44,6 +44,8 @@ def after_request(response):
     return response
 @app.get("/health")
 def health():
+    x = 1 / 0  # cassé volontairement pour tester le rollback
+
     return jsonify({"status": "ok"}), 200
 
 @app.get("/build-log")
