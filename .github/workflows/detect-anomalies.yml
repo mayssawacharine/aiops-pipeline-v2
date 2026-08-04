@@ -38,13 +38,40 @@ jobs:
             data/scored_runs.csv
             data/anomalies.png
       - name: Mark anomaly
+        id: mark
         run: |
           python - <<'PY'
-          import json, sys
+          import json, os
           with open('data/latest_detection.json') as f:
               result = json.load(f)
-          if result['anomaly_label'] == -1:
+          is_anomaly = result['anomaly_label'] == -1
+          if is_anomaly:
               print('::warning title=Anomaly Detected::Latest CI run looks anomalous')
           else:
               print('Latest run looks normal')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write(f"is_anomaly={'true' if is_anomaly else 'false'}\n")
+              out.write(f"run_id={result['run_id']}\n")
+              out.write(f"duration={result['duration_seconds']}\n")
+              out.write(f"score={result['anomaly_score']}\n")
           PY
+
+      - name: Send email alert
+        if: steps.mark.outputs.is_anomaly == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.GMAIL_ADDRESS }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "🚨 Anomalie détectée - aiops-pipeline-v2"
+          to: ${{ secrets.GMAIL_ADDRESS }}
+          from: AIOps Pipeline Alert
+          body: |
+            Une anomalie a été détectée dans le pipeline CI/CD.
+
+            Run ID: ${{ steps.mark.outputs.run_id }}
+            Durée: ${{ steps.mark.outputs.duration }}s
+            Score d'anomalie: ${{ steps.mark.outputs.score }}
+
+            Voir le dashboard : https://aiops-pipeline-v2-1.onrender.com/dashboard
