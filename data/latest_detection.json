@@ -1,7 +1,7 @@
 {
-  "run_id": 30962235733,
+  "run_id": 30962933582,
   "conclusion": "success",
-  "duration_seconds": 74,
-  "anomaly_label": 1,
-  "anomaly_score": 0.10547425463467647
+  "duration_seconds": 378,
+  "anomaly_label": -1,
+  "anomaly_score": -0.07031616975645105
 }
