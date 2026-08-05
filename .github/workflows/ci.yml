@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Artificial delay to simulate anomaly
+        run: sleep 300
 
       - name: Set up Python
         uses: actions/setup-python@v5
