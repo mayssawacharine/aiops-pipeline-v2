@@ -5,9 +5,9 @@ import joblib
 import os
 
 df = pd.read_csv("data/api_requests.csv")
+df = df[df["timestamp"] != "timestamp"]
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 df = df.sort_values("timestamp").reset_index(drop=True)
-
 # Feature 1 : le code de statut est-il une erreur ?
 df["is_error"] = df["status_code"].apply(lambda x: 1 if int(x) >= 400 else 0)
 

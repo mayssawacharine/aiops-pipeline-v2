@@ -26,7 +26,7 @@ limiter = Limiter(
 def log_request(endpoint, status_code, params=None):
     os.makedirs("data", exist_ok=True)
     log_file = "data/api_requests.csv"
-    exists = os.path.exists(log_file)
+    exists = os.path.exists(log_file) and os.path.getsize(log_file) > 0
     with open(log_file, "a", newline="") as f:
         writer = csv.writer(f)
         if not exists:
