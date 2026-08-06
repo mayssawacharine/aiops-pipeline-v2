@@ -29,8 +29,6 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
-      - name: Artificial delay to simulate anomaly
-        run: sleep 300
 
   docker-build:
     needs: test
