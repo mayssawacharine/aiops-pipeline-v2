@@ -90,16 +90,22 @@ def refresh():
     expected_secret = os.getenv("REFRESH_SECRET", "")
     if not expected_secret or provided_secret != expected_secret:
         return jsonify({"error": "Unauthorized"}), 401
-    try:
-        subprocess.run([sys.executable, "scripts/fetch_metrics.py"], check=True, timeout=60)
-        subprocess.run([sys.executable, "scripts/train_model.py"], check=True, timeout=60)
-        subprocess.run([sys.executable, "scripts/detect_latest_run.py"], check=True, timeout=60)
-        if os.path.exists("data/anomalies.png"):
-            shutil.copy("data/anomalies.png", "app/static/anomalies.png")
-        if os.path.exists("data/api_requests.csv"):
-            subprocess.run([sys.executable, "scripts/detect_api_anomalies.py"], check=True, timeout=60)
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": "Erreur lors du rafraîchissement"}), 500
+
+    scripts = ["scripts/fetch_metrics.py", "scripts/train_model.py", "scripts/detect_latest_run.py"]
+    if os.path.exists("data/api_requests.csv"):
+        scripts.append("scripts/detect_api_anomalies.py")
+
+    for script in scripts:
+        result = subprocess.run([sys.executable, script], capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            print(f"[REFRESH ERROR] {script} failed with code {result.returncode}")
+            print(f"[REFRESH ERROR] stdout: {result.stdout}")
+            print(f"[REFRESH ERROR] stderr: {result.stderr}")
+            return jsonify({"error": f"Échec du script {script}"}), 500
+
+    if os.path.exists("data/anomalies.png"):
+        shutil.copy("data/anomalies.png", "app/static/anomalies.png")
+
     return redirect(url_for("dashboard"))
 @app.get("/dashboard")
 def dashboard():
