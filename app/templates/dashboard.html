@@ -3,191 +3,269 @@
 <head>
   <meta charset="UTF-8">
   <title>CI/CD Anomaly Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
-      background: #0b0d12;
+      background: radial-gradient(circle at top left, #12151c, #0b0d12 60%);
       color: #e6e6e6;
-      padding: 40px;
+      padding: 32px 40px;
       margin: 0;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
     }
     h1 {
       color: #4dd4a0;
-      font-size: 28px;
-      margin-bottom: 30px;
+      font-size: 26px;
+      margin: 0;
       display: flex;
       align-items: center;
       gap: 10px;
+      letter-spacing: 0.3px;
     }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: linear-gradient(135deg, #4dd4a0, #35a67e); color: #06110d; box-shadow: 0 4px 14px rgba(77,212,160,0.25); }
+    .btn-danger { background: linear-gradient(135deg, #ff7c98, #d84f6d); color: #1a0508; box-shadow: 0 4px 14px rgba(255,124,152,0.25); }
+    .btn-ghost { background: #171a21; color: #e6e6e6; border: 1px solid #2a2e38; }
+
     .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 16px;
-      margin-bottom: 30px;
+      margin-bottom: 28px;
     }
     .card {
-      background: linear-gradient(145deg, #1c1f26, #15171c);
-      padding: 18px 22px;
-      border-radius: 12px;
-      border: 1px solid #262a33;
+      background: linear-gradient(160deg, #1a1e27, #12151c);
+      padding: 20px 22px;
+      border-radius: 14px;
+      border: 1px solid #262b36;
+      position: relative;
+      overflow: hidden;
     }
-    .card h3 {
-      margin: 0;
-      font-size: 13px;
-      color: #999;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent, #4dd4a0);
     }
-    .card p {
-      margin: 8px 0 0;
-      font-size: 26px;
-      font-weight: bold;
-    }
-    .card.anomaly-card p { color: #ff7c98; }
-    .card.failed-card p { color: #ffb454; }
-    .card.normal-card p { color: #4dd4a0; }
+    .card h3 { margin: 0; font-size: 12px; color: #8a8f9c; text-transform: uppercase; letter-spacing: 0.6px; }
+    .card p { margin: 10px 0 0; font-size: 30px; font-weight: 700; }
+    .card.total { --accent: #4dd4a0; } .card.total p { color: #4dd4a0; }
+    .card.failed { --accent: #ffb454; } .card.failed p { color: #ffb454; }
+    .card.anomaly { --accent: #ff7c98; } .card.anomaly p { color: #ff7c98; }
+    .card.avg { --accent: #7aa2f7; } .card.avg p { color: #7aa2f7; }
 
-    .chart-box {
-      background: #fff;
-      border-radius: 12px;
-      padding: 10px;
-      margin-bottom: 30px;
+    .panel {
+      background: #12151c;
+      border: 1px solid #1f232c;
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 24px;
     }
-    .chart-box img { width: 100%; display: block; border-radius: 8px; }
+    .panel h2 { margin: 0 0 14px; font-size: 15px; color: #c7cbd4; font-weight: 600; }
+    .chart-wrap { height: 280px; position: relative; }
 
-    .toolbar {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
-    }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
     .toolbar button {
-      background: #1c1f26;
-      color: #e6e6e6;
-      border: 1px solid #333;
-      padding: 8px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
+      background: #171a21; color: #b7bcc7; border: 1px solid #2a2e38;
+      padding: 8px 16px; border-radius: 999px; cursor: pointer; font-size: 12.5px; font-weight: 600;
     }
-    .toolbar button.active {
-      background: #4dd4a0;
-      color: #0b0d12;
-      font-weight: bold;
-      border-color: #4dd4a0;
-    }
+    .toolbar button.active { background: #4dd4a0; color: #06110d; border-color: #4dd4a0; }
 
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 14px; border-bottom: 1px solid #22252c; text-align: left; font-size: 14px; }
-    th { color: #4dd4a0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-    tr:hover { background: #14161c; }
-    .badge {
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: bold;
-      display: inline-block;
-    }
-    .badge.anomaly { background: rgba(255,124,152,0.15); color: #ff7c98; }
-    .badge.normal { background: rgba(77,212,160,0.15); color: #4dd4a0; }
-    .empty { color: #999; font-style: italic; padding: 20px; }
+    th, td { padding: 11px 14px; border-bottom: 1px solid #1c2029; text-align: left; font-size: 13.5px; }
+    th { color: #7d8290; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+    tr.row-item { transition: background 0.1s ease; }
+    tr.row-item:hover { background: #171a21; }
+    .badge { padding: 4px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; display: inline-block; }
+    .badge.anomaly { background: rgba(255,124,152,0.14); color: #ff7c98; }
+    .badge.normal { background: rgba(77,212,160,0.14); color: #4dd4a0; }
+    .empty { color: #7d8290; font-style: italic; padding: 24px 4px; }
     tr.hidden { display: none; }
+
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 18px; }
+    .pagination button {
+      background: #171a21; color: #e6e6e6; border: 1px solid #2a2e38;
+      padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 12.5px;
+    }
+    .pagination button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .pagination span { font-size: 12.5px; color: #8a8f9c; }
   </style>
 </head>
 <body>
-  <div style="display:flex; justify-content:space-between; align-items:center;">
-  <h1>🛰️ CI/CD Anomaly Dashboard</h1>
-  <button onclick="refreshData()" style="background:#4dd4a0; color:#0b0d12; padding:10px 20px; border-radius:8px; border:none; font-weight:bold; font-size:14px; cursor:pointer;">
-    🔄 Actualiser les données
-</button>
-<script>
-async function refreshData() {
-    let secret = sessionStorage.getItem('refresh_secret');
-    if (!secret) {
-        secret = prompt("Entrez le secret d'actualisation :");
-        if (!secret) return;
-        sessionStorage.setItem('refresh_secret', secret);
-    }
-    const response = await fetch('/refresh', {
-        method: 'POST',
-        headers: { 'X-Refresh-Secret': secret }
-    });
-    if (response.ok) {
-        location.reload();
-    } else if (response.status === 401) {
-        sessionStorage.removeItem('refresh_secret');
-        alert("Secret incorrect. Réessaie.");
-    } else if (response.status === 429) {
-        alert("Trop de tentatives récentes (limite : 20/heure). Attends un peu avant de réessayer.");
-    } else {
-        alert("Erreur serveur (" + response.status + "). Vérifie les logs Render.");
-    }
-}
-</script>
-<a href="/security" style="background:#ff7c98; color:#0b0d12; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:14px; margin-left:10px;">
-    🛡️ Security Dashboard
-  </a>
-<a href="/anomaly-history" style="background:#1c1f26; color:#e6e6e6; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:14px; margin-left:10px; border:1px solid #333;">
-  📜 Historique
-</a>
-</div>
+  <header>
+    <h1>🛰️ CI/CD Anomaly Dashboard</h1>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="refreshData()">🔄 Actualiser les données</button>
+      <a class="btn btn-danger" href="/security">🛡️ Security</a>
+      <a class="btn btn-ghost" href="/anomaly-history">📜 Historique</a>
+    </div>
+  </header>
 
   {% if stats %}
   <div class="cards">
-    <div class="card"><h3>Total Runs</h3><p>{{ stats.get('total_runs', 0) }}</p></div>
-    <div class="card failed-card"><h3>Failed Runs</h3><p>{{ stats.get('failed_runs', 0) }}</p></div>
-    <div class="card anomaly-card"><h3>Anomalies</h3><p>{{ stats.get('anomalies', 0) }}</p></div>
-    <div class="card normal-card"><h3>Avg Duration</h3><p>{{ stats.get('avg_duration', 0) }}s</p></div>
+    <div class="card total"><h3>Total Runs</h3><p>{{ stats.get('total_runs', 0) }}</p></div>
+    <div class="card failed"><h3>Failed Runs</h3><p>{{ stats.get('failed_runs', 0) }}</p></div>
+    <div class="card anomaly"><h3>Anomalies</h3><p>{{ stats.get('anomalies', 0) }}</p></div>
+    <div class="card avg"><h3>Avg Duration</h3><p>{{ stats.get('avg_duration', 0) }}s</p></div>
   </div>
   {% endif %}
 
-  {% if chart_path %}
-  <div class="chart-box">
-    <img src="{{ chart_path }}" alt="Anomaly chart">
+  {% if chart_data %}
+  <div class="panel">
+    <h2>Durée des runs dans le temps (survolez un point pour le détail)</h2>
+    <div class="chart-wrap"><canvas id="anomalyChart"></canvas></div>
   </div>
   {% endif %}
 
   {% if rows %}
-  <div class="toolbar">
-    <button class="active" onclick="filterRows('all', this)">Tous ({{ rows|length }})</button>
-    <button onclick="filterRows('anomaly', this)">Anomalies seulement</button>
-    <button onclick="filterRows('normal', this)">Normaux seulement</button>
-  </div>
+  <div class="panel">
+    <div class="toolbar">
+      <button class="active" onclick="filterRows('all', this)">Tous ({{ rows|length }})</button>
+      <button onclick="filterRows('anomaly', this)">Anomalies seulement</button>
+      <button onclick="filterRows('normal', this)">Normaux seulement</button>
+    </div>
 
-  <table>
-    <thead>
-      <tr><th>Date</th><th>Run ID</th><th>Conclusion</th><th>Durée</th><th>Statut</th><th>Score</th></tr>
-    </thead>
-    <tbody id="runs-body">
-      {% for row in rows %}
-      <tr class="row-item" data-status="{{ 'anomaly' if row.anomaly_label == -1 else 'normal' }}">
-  <td>{{ row.created_at_display }}</td>
-  <td>{{ row.run_id }}</td>
-  <td>{{ row.conclusion }}</td>
-  <td>{{ row.duration_seconds }}s</td>
-  <td>
-    <span class="badge {{ 'anomaly' if row.anomaly_label == -1 else 'normal' }}">
-      {{ 'Anomaly' if row.anomaly_label == -1 else 'Normal' }}
-    </span>
-  </td>
-  <td>{{ "%.4f"|format(row.anomaly_score) }}</td>
-</tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Run ID</th><th>Conclusion</th><th>Durée</th><th>Statut</th><th>Score</th></tr>
+      </thead>
+      <tbody id="runs-body">
+        {% for row in rows %}
+        <tr class="row-item" data-status="{{ 'anomaly' if row.anomaly_label == -1 else 'normal' }}">
+          <td>{{ row.created_at_display }}</td>
+          <td>{{ row.run_id }}</td>
+          <td>{{ row.conclusion }}</td>
+          <td>{{ row.duration_seconds }}s</td>
+          <td><span class="badge {{ 'anomaly' if row.anomaly_label == -1 else 'normal' }}">{{ 'Anomaly' if row.anomaly_label == -1 else 'Normal' }}</span></td>
+          <td>{{ "%.4f"|format(row.anomaly_score) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="pagination">
+      <button id="prevPage" onclick="changePage(-1)">← Précédent</button>
+      <span id="pageInfo"></span>
+      <button id="nextPage" onclick="changePage(1)">Suivant →</button>
+    </div>
+  </div>
   {% else %}
   <p class="empty">Aucune donnée disponible pour le moment. Lance le pipeline pour générer des métriques.</p>
   {% endif %}
 
   <script>
+    // --- Refresh button ---
+    async function refreshData() {
+      let secret = sessionStorage.getItem('refresh_secret');
+      if (!secret) {
+        secret = prompt("Entrez le secret d'actualisation :");
+        if (!secret) return;
+        sessionStorage.setItem('refresh_secret', secret);
+      }
+      const response = await fetch('/refresh', { method: 'POST', headers: { 'X-Refresh-Secret': secret } });
+      if (response.ok) {
+        location.reload();
+      } else if (response.status === 401) {
+        sessionStorage.removeItem('refresh_secret');
+        alert("Secret incorrect. Réessaie.");
+      } else if (response.status === 429) {
+        alert("Trop de tentatives récentes. Attends un peu avant de réessayer.");
+      } else {
+        alert("Erreur serveur (" + response.status + "). Vérifie les logs Render.");
+      }
+    }
+
+    // --- Filter (anomaly / normal / all) ---
+    let currentFilter = 'all';
     function filterRows(status, btn) {
+      currentFilter = status;
       document.querySelectorAll('.toolbar button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      document.querySelectorAll('.row-item').forEach(row => {
-        if (status === 'all' || row.dataset.status === status) {
-          row.classList.remove('hidden');
-        } else {
-          row.classList.add('hidden');
+      currentPage = 1;
+      renderPage();
+    }
+
+    // --- Pagination ---
+    const pageSize = 10;
+    let currentPage = 1;
+    function getVisibleRows() {
+      return Array.from(document.querySelectorAll('.row-item')).filter(row =>
+        currentFilter === 'all' || row.dataset.status === currentFilter
+      );
+    }
+    function renderPage() {
+      const all = Array.from(document.querySelectorAll('.row-item'));
+      const visible = getVisibleRows();
+      const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+      currentPage = Math.min(currentPage, totalPages);
+      all.forEach(r => r.classList.add('hidden'));
+      visible.slice((currentPage - 1) * pageSize, currentPage * pageSize).forEach(r => r.classList.remove('hidden'));
+      document.getElementById('pageInfo').textContent = `Page ${currentPage} / ${totalPages}`;
+      document.getElementById('prevPage').disabled = currentPage <= 1;
+      document.getElementById('nextPage').disabled = currentPage >= totalPages;
+    }
+    function changePage(delta) {
+      currentPage += delta;
+      renderPage();
+    }
+    renderPage();
+
+    // --- Interactive chart ---
+    const chartData = {{ chart_data | tojson }};
+    if (chartData.length) {
+      const ctx = document.getElementById('anomalyChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'Runs',
+            data: chartData.map(d => ({ x: d.x, y: d.y })),
+            pointBackgroundColor: chartData.map(d => d.anomaly ? '#ff7c98' : '#4dd4a0'),
+            pointRadius: chartData.map(d => d.anomaly ? 6 : 4),
+            pointHoverRadius: 8,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: '#7d8290' }, grid: { color: '#1c2029' }, title: { display: true, text: 'Run (chronologique)', color: '#7d8290' } },
+            y: { ticks: { color: '#7d8290' }, grid: { color: '#1c2029' }, title: { display: true, text: 'Durée (s)', color: '#7d8290' } }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const d = chartData[ctx.dataIndex];
+                  return [`Run ${d.run_id}`, `${d.date}`, `${d.y}s — ${d.anomaly ? 'Anomaly' : 'Normal'}`];
+                }
+              }
+            }
+          }
         }
       });
     }

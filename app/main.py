@@ -108,10 +108,11 @@ def refresh():
 
     return redirect(url_for("dashboard"))
 @app.get("/dashboard")
+@app.get("/dashboard")
 def dashboard():
     csv_path = "data/scored_runs.csv"
     if not os.path.exists(csv_path):
-        return render_template("dashboard.html", rows=[], stats={}, chart_path=None)
+        return render_template("dashboard.html", rows=[], stats={}, chart_data=[])
 
     df = pd.read_csv(csv_path)
     df["created_at"] = pd.to_datetime(df["created_at"], utc=True)
@@ -124,8 +125,21 @@ def dashboard():
         "avg_duration": round(df["duration_seconds"].mean(), 2)
     }
     df["created_at_display"] = df["created_at"].dt.strftime("%d/%m/%Y %H:%M")
-    rows = df.head(20).to_dict(orient="records")
-    return render_template("dashboard.html", rows=rows, stats=stats, chart_path="/static/anomalies.png")
+    rows = df.head(50).to_dict(orient="records")
+
+    chart_df = df.sort_values("created_at").tail(50)
+    chart_data = [
+        {
+            "x": i,
+            "y": int(row["duration_seconds"]),
+            "anomaly": bool(row["anomaly_label"] == -1),
+            "run_id": int(row["run_id"]),
+            "date": row["created_at"].strftime("%d/%m %H:%M")
+        }
+        for i, (_, row) in enumerate(chart_df.iterrows())
+    ]
+
+    return render_template("dashboard.html", rows=rows, stats=stats, chart_data=chart_data)
 @app.get("/security")
 def security_dashboard():
     csv_path = "data/api_security_scored.csv"
