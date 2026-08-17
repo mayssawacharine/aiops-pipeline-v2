@@ -6,10 +6,10 @@ import pandas as pd
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 REPO = os.getenv("GITHUB_REPO")
-url = f"https://api.github.com/repos/{REPO}/actions/runs"
+url = f"https://api.github.com/repos/{REPO}/actions/workflows/ci.yml/runs"
 headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
-
-response = requests.get(url, headers=headers, timeout=30)
+params = {"per_page": 100}
+response = requests.get(url, headers=headers, params=params, timeout=30)
 response.raise_for_status()
 runs = response.json()["workflow_runs"]
 rows = []
