@@ -94,7 +94,8 @@ def refresh():
     scripts = ["scripts/fetch_metrics.py", "scripts/train_model.py", "scripts/detect_latest_run.py"]
     if os.path.exists("data/api_requests.csv"):
         scripts.append("scripts/detect_api_anomalies.py")
-
+    if os.getenv("SONAR_API_TOKEN"):
+        scripts.append("scripts/fetch_sonar_issues.py")
     for script in scripts:
         result = subprocess.run([sys.executable, script], capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
@@ -107,7 +108,6 @@ def refresh():
         shutil.copy("data/anomalies.png", "app/static/anomalies.png")
 
     return redirect(url_for("dashboard"))
-@app.get("/dashboard")
 @app.get("/dashboard")
 def dashboard():
     csv_path = "data/scored_runs.csv"
@@ -140,25 +140,25 @@ def dashboard():
     ]
 
     return render_template("dashboard.html", rows=rows, stats=stats, chart_data=chart_data)
+
 @app.get("/security")
 def security_dashboard():
-    csv_path = "data/api_security_scored.csv"
-    if not os.path.exists(csv_path):
-        return render_template("security.html", rows=[], stats={})
+    sonar_rows, sonar_stats = [], {}
+    sonar_path = "data/sonar_issues.csv"
+    if os.path.exists(sonar_path):
+        sdf = pd.read_csv(sonar_path)
+        sonar_stats = {
+            "total_issues": int(len(sdf)),
+            "critical": int((sdf["severity"] == "CRITICAL").sum()) if "severity" in sdf else 0,
+            "major": int((sdf["severity"] == "MAJOR").sum()) if "severity" in sdf else 0,
+            "minor": int((sdf["severity"] == "MINOR").sum()) if "severity" in sdf else 0,
+            "vulnerabilities": int((sdf["type"] == "VULNERABILITY").sum()) if "type" in sdf else 0,
+            "code_smells": int((sdf["type"] == "CODE_SMELL").sum()) if "type" in sdf else 0,
+        }
+        sdf = sdf.sort_values("severity", key=lambda s: s.map({"BLOCKER": 0, "CRITICAL": 1, "MAJOR": 2, "MINOR": 3, "INFO": 4}))
+        sonar_rows = sdf.to_dict(orient="records")
 
-    df = pd.read_csv(csv_path)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df = df.sort_values("timestamp", ascending=False)
-
-    stats = {
-        "total_requests": int(len(df)),
-        "suspicious_requests": int((df["security_anomaly"] == -1).sum()),
-        "error_requests": int((df["is_error"] == 1).sum()),
-        "max_payload_length": int(df["params_length"].max())
-    }
-    df["timestamp_display"] = df["timestamp"].dt.strftime("%H:%M:%S.%f").str[:-3]
-    rows = df.head(30).to_dict(orient="records")
-    return render_template("security.html", rows=rows, stats=stats)
+    return render_template("security.html", sonar_rows=sonar_rows, sonar_stats=sonar_stats)
 @app.get("/anomaly-history")
 def anomaly_history():
     csv_path = "data/anomaly_history.csv"
