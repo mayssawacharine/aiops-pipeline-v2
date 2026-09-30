@@ -13,3 +13,5 @@ def test_simulate_failed_build():
     assert data['status'] == 'failed'
     assert data['duration_seconds'] == 120
     assert data['failed_tests'] == 3
+def test_ci_failure_protection():
+    assert 1 / 0 == 1
