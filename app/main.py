@@ -88,25 +88,50 @@ def simulate():
 def refresh():
     provided_secret = request.headers.get("X-Refresh-Secret", "")
     expected_secret = os.getenv("REFRESH_SECRET", "")
+
     if not expected_secret or provided_secret != expected_secret:
         return jsonify({"error": "Unauthorized"}), 401
 
-    scripts = ["scripts/fetch_metrics.py", "scripts/train_model.py", "scripts/detect_latest_run.py"]
+    scripts = [
+        "scripts/fetch_metrics.py",
+        "scripts/train_model.py",
+        "scripts/detect_latest_run.py"
+    ]
+
     if os.path.exists("data/api_requests.csv"):
         scripts.append("scripts/detect_api_anomalies.py")
+
     if os.getenv("SONAR_API_TOKEN"):
         scripts.append("scripts/fetch_sonar_issues.py")
+
     for script in scripts:
-        result = subprocess.run([sys.executable, script], capture_output=True, text=True, timeout=60)
+        result = subprocess.run(
+            [sys.executable, script],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
         if result.returncode != 0:
             print(f"[REFRESH ERROR] {script} failed with code {result.returncode}")
             print(f"[REFRESH ERROR] stdout: {result.stdout}")
             print(f"[REFRESH ERROR] stderr: {result.stderr}")
-            return jsonify({"error": f"Échec du script {script}"}), 500
+
+            return jsonify({
+                "error": f"Échec du script {script}",
+                "details": result.stderr
+            }), 500
 
     if os.path.exists("data/anomalies.png"):
-        shutil.copy("data/anomalies.png", "app/static/anomalies.png")
+        shutil.copy(
+            "data/anomalies.png",
+            "app/static/anomalies.png"
+        )
 
+    return jsonify({
+        "status": "success",
+        "message": "Données actualisées avec succès"
+    }), 200
     return redirect(url_for("dashboard"))
 @app.get("/dashboard")
 def dashboard():
