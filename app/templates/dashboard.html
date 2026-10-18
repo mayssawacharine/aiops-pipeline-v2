@@ -194,7 +194,9 @@
       } else if (response.status === 429) {
         alert("Trop de tentatives récentes. Attends un peu avant de réessayer.");
       } else {
-        alert("Erreur serveur (" + response.status + "). Vérifie les logs Render.");
+        const details = await response.text();
+        console.error("Erreur /refresh :", response.status, details);
+        alert("Erreur serveur (" + response.status + ").\\n" + details.substring(0, 1000));
       }
     }
 
